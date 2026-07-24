@@ -17,7 +17,7 @@ find_package(ECM REQUIRED NO_MODULE)
 find_package(KF6Config REQUIRED)
 find_package(KF6CoreAddons REQUIRED)
 find_package(KF6KIO REQUIRED)
-find_package(KF6 REQUIRED COMPONENTS WidgetsAddons)
+find_package(KF6WidgetsAddons REQUIRED)
 
 # Set up CMake module path
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -56,11 +56,10 @@ generate_export_header(${INSYNC_DOLPHIN_PLUGIN_HELPER} BASE_NAME insyncdolphinpl
 install(TARGETS ${INSYNC_DOLPHIN_PLUGIN_HELPER} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Item action plugin
-add_definitions(-DTRANSLATION_DOMAIN=\"fileitemactioninsyncplugin\")
-set(INSYNC_ACTION_PLUGIN fileitemactioninsyncplugin)
+add_definitions(-DTRANSLATION_DOMAIN=\"insyncfileitemaction\")
+set(INSYNC_ACTION_PLUGIN insyncfileitemaction)
 add_library(${INSYNC_ACTION_PLUGIN} MODULE ${INSYNC_ACTION_PLUGIN}.cpp
-    fileitemactioninsyncplugin.hpp
-    fileitemactioninsyncplugin.desktop)
+    insyncfileitemaction.hpp)
 target_link_libraries(${INSYNC_ACTION_PLUGIN} PRIVATE
     KF6::CoreAddons
     KF6::KIOCore
@@ -68,15 +67,14 @@ target_link_libraries(${INSYNC_ACTION_PLUGIN} PRIVATE
     KF6::KIOWidgets
     ${INSYNC_DOLPHIN_PLUGIN_HELPER}
 )
-install(FILES ${INSYNC_ACTION_PLUGIN}.desktop DESTINATION ${SERVICES_INSTALL_DIR})
-install(TARGETS ${INSYNC_ACTION_PLUGIN} DESTINATION ${PLUGIN_INSTALL_DIR})
+install(TARGETS ${INSYNC_ACTION_PLUGIN} DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/kfileitemaction)
 
 # Overlay icon plugin
-add_definitions(-DTRANSLATION_DOMAIN=\"overlayiconinsyncplugin\")
-set(INSYNC_OVERLAY_PLUGIN overlayiconinsyncplugin)
+add_definitions(-DTRANSLATION_DOMAIN=\"insyncoverlayicon\")
+set(INSYNC_OVERLAY_PLUGIN insyncoverlayicon)
 add_library(${INSYNC_OVERLAY_PLUGIN} MODULE ${INSYNC_OVERLAY_PLUGIN}.cpp
-    overlayiconinsyncplugin.hpp
-    overlayiconinsyncplugin.json)
+    insyncoverlayicon.hpp
+    insyncoverlayicon.json)
 target_link_libraries(${INSYNC_OVERLAY_PLUGIN} PRIVATE
     KF6::CoreAddons
     KF6::KIOCore
@@ -84,6 +82,25 @@ target_link_libraries(${INSYNC_OVERLAY_PLUGIN} PRIVATE
     KF6::KIOWidgets
     ${INSYNC_DOLPHIN_PLUGIN_HELPER}
 )
-install(TARGETS ${INSYNC_OVERLAY_PLUGIN} DESTINATION ${PLUGIN_INSTALL_DIR}/kf6/overlayicon)
+install(TARGETS ${INSYNC_OVERLAY_PLUGIN} DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/overlayicon)
+
+# Icons
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/usr/share/icons/
+    DESTINATION ${KDE_INSTALL_ICONDIR}
+    FILES_MATCHING
+    PATTERN "*.png"
+    PATTERN "*.svg"
+)
+
+# Remove files from previous installations
+# They were renamed and if they are still present, the overlay icons appear twice
+# Luckily when the files are not there, this fails silently
+install(CODE "
+    file(REMOVE 
+		\"\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_PLUGINDIR}/kf6/overlayicon/overlayiconinsyncplugin.so\"
+        \"\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_PLUGINDIR}/kf6/kfileitemaction/fileitemactioninsyncplugin.so\"
+        \"\${CMAKE_INSTALL_PREFIX}/${KDE_INSTALL_DATADIR}/kio/servicemenus/fileitemactioninsyncplugin.desktop\"
+    )
+")
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

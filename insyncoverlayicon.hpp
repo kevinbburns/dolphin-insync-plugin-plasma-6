@@ -1,4 +1,6 @@
 /*****************************************************************************
+ *   Copyright (C) 2025 by Tomáš Hnyk <tomashnyk@gmail.com>                  *
+ *   Copyright (C) 2025 by Kevin B. Burns                                    *
  *   Copyright (C) 2021 by Kurt Ko <kurt@insynchq.com>                       *
  *   Copyright (C) 2014 by Luis Manuel R. Pugoy <lpugoy@insynchq.com>        *
  *   Copyright (C) 2014 by Emmanuel Pescosta <emmanuelpescosta099@gmail.com> *
@@ -22,60 +24,29 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA              *
  *****************************************************************************/
 
-#include "overlayiconinsyncplugin.hpp"
-#include "insyncdolphinpluginhelper.hpp"
+#ifndef INSYNCOVERLAYICON_H
+#define INSYNCOVERLAYICON_H
 
-#include <KFileItem>
-#include <KPluginFactory>
+#include <KOverlayIconPlugin>
 
-#include <QFileInfo>
-#include <QPointer>
-#include <QLocalSocket>
-#include <QJsonObject>
-#include <QString>
-#include <QStringList>
-#include <QStringLiteral>
+class InsyncDolphinPluginHelper;
 
-QStringList OverlayIconInsyncPlugin::getOverlays(const QUrl &url)
+/**
+ * @brief Insync implementation for the KOverlayIconPlugin interface.
+ */
+class InsyncOverlayIcon : public KOverlayIconPlugin
 {
-    if (!url.isLocalFile())
-    {
-        return QStringList();
-    }
+    Q_PLUGIN_METADATA(IID "com.insync.overlayiconplugin" FILE "insyncoverlayicon.json")
+    Q_OBJECT
 
-    QString status = getFileStatus(url.toLocalFile());
-    QStringList overlays = QStringList();
+private:
+    InsyncDolphinPluginHelper *helper;
 
-    if (status == QStringLiteral("SYNCED"))
-    {
-        overlays.append(QStringLiteral(""));
-        //overlays << "emblem-insync-synced";
-    }
-    else if (status == QStringLiteral("SYNCING"))
-    {
-        overlays.append(QStringLiteral("emblem-insync-syncing"));
-        //overlays << "emblem-insync-syncing";
-    }
-    else if (status == QStringLiteral("ERROR"))
-    {
-        overlays.append(QStringLiteral("emblem-insync-error"));
-        //overlays << "emblem-insync-error";
-    }
+public:
+    QStringList getOverlays(const QUrl &item) override;
 
-    return overlays;
-}
+private:
+    QString getFileStatus(const QString &url) const;
+};
 
-QString OverlayIconInsyncPlugin::getFileStatus(const QString &url) const
-{
-    QJsonObject command = QJsonObject();
-    command.insert(QStringLiteral("command"), QStringLiteral("GET-FILE-STATUS"));
-    command.insert(QStringLiteral("full_path"), QFileInfo(url).canonicalFilePath());
-
-    QPointer<QLocalSocket> itemStateSocket = new QLocalSocket;
-    const QVariant reply = helper->sendCommand(command, itemStateSocket, InsyncDolphinPluginHelper::WaitForReply);
-    delete itemStateSocket;
-
-    return reply.toString();
-}
-
-#include "overlayiconinsyncplugin.moc"
+#endif // INSYNCOVERLAYICON_H

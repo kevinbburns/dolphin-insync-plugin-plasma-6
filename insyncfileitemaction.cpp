@@ -1,4 +1,6 @@
 /*****************************************************************************
+ *   Copyright (C) 2025 by Tomáš Hnyk <tomashnyk@gmail.com>                  *
+ *   Copyright (C) 2025 by Kevin B. Burns                                    *
  *   Copyright (C) 2021 by Kurt Ko <kurt@insynchq.com>                       *
  *   Copyright (C) 2014 by Luis Manuel R. Pugoy <lpugoy@insynchq.com>        *
  *   Copyright (C) 2014 by Emmanuel Pescosta <emmanuelpescosta099@gmail.com> *
@@ -22,7 +24,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA              *
  *****************************************************************************/
 
-#include "fileitemactioninsyncplugin.hpp"
+#include "insyncfileitemaction.hpp"
 #include "insyncdolphinpluginhelper.hpp"
 
 #include <KFileItem>
@@ -35,11 +37,7 @@
 #include <QStringBuilder>
 #include <QJsonObject>
 
-K_PLUGIN_FACTORY(InsyncFileItemActionPluginFactory, registerPlugin<FileItemActionInsyncPlugin>();)
-
-//K_EXPORT_PLUGIN(InsyncFileItemActionPluginFactory("fileitemactioninsyncplugin"))
-
-FileItemActionInsyncPlugin::FileItemActionInsyncPlugin(QObject *parent, const QVariantList &args)
+InsyncFileItemAction::InsyncFileItemAction(QObject* parent, const QVariantList& args)
     : KAbstractFileItemActionPlugin(parent)
 {
     Q_UNUSED(args);
@@ -48,17 +46,17 @@ FileItemActionInsyncPlugin::FileItemActionInsyncPlugin(QObject *parent, const QV
     helper->connectWithInsync(controlSocket);
 }
 
-FileItemActionInsyncPlugin::~FileItemActionInsyncPlugin()
+InsyncFileItemAction::~InsyncFileItemAction()
 {
     delete controlSocket;
 }
 
-QList<QAction *> FileItemActionInsyncPlugin::actions(const KFileItemListProperties &fileItemInfos,
+QList<QAction *> InsyncFileItemAction::actions(const KFileItemListProperties &fileItemInfos,
                                                      QWidget *parentWidget)
 {
     Q_UNUSED(parentWidget);
 
-    // The FileItemActionInsyncPlugin::contextMenuActions implemented by Luis only works when
+    // The InsyncFileItemAction::contextMenuActions implemented by Luis only works when
     // you right click a single file/directory. The snippet below is a part of the code
     // to handle multiple files/directories selected when opening the context menu
     // for (const KFileItem& item : fileItemInfos.items()) {
@@ -76,24 +74,29 @@ QList<QAction *> FileItemActionInsyncPlugin::actions(const KFileItemListProperti
     return getContextMenuActions(item.url().path());
 }
 
-void FileItemActionInsyncPlugin::handleContextAction(const QJsonObject &action)
+void InsyncFileItemAction::handleContextAction(const QJsonObject &action)
 {
     helper->sendCommand(action, controlSocket);
 }
 
-QList<QAction *> FileItemActionInsyncPlugin::getContextMenuActions(const QString &url)
+QList<QAction *> InsyncFileItemAction::getContextMenuActions(const QString &url)
 {
     QJsonObject command = QJsonObject();
     command.insert(QStringLiteral("command"),
                    QStringLiteral("CONTEXT-MENU-ITEMS"));
     command.insert(QStringLiteral("full_path"),
                    url);
-
     const QVariant reply = helper->sendCommand(command,
                                                controlSocket, InsyncDolphinPluginHelper::WaitForReply);
 
+    // This happens when insync is not running, so return empty so no menu is shown
     if (reply.isNull())
         return QList<QAction *>();
+    // This happens when insync is starting (ByteArray has length 0) or when a file is being uploaded (it returns "null")
+    else if (reply.canConvert<QByteArray>()) {
+        if (reply.toByteArray().length() == 0 || reply.toByteArray() == "null")
+            return QList<QAction *>();
+    }
 
     QList<QVariant> menuinfo = reply.toList();
     QString title = menuinfo.at(0).toString();
@@ -133,4 +136,5 @@ QList<QAction *> FileItemActionInsyncPlugin::getContextMenuActions(const QString
     return QList<QAction *>{topContextMenu};
 }
 
-#include "fileitemactioninsyncplugin.moc"
+K_PLUGIN_CLASS_WITH_JSON(InsyncFileItemAction, "insyncfileitemaction.json")
+#include "insyncfileitemaction.moc"
